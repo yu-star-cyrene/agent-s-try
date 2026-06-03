@@ -1,0 +1,34 @@
+{
+  "project_name": "多模态大模型驱动的图斑审查预检系统",
+  "scene": "国土图斑审查预检",
+  "output_fields": [
+    "is_abnormal",
+    "issue_type",
+    "reason",
+    "evidence",
+    "confidence",
+    "requires_manual_review"
+  ],
+  "rules": [
+    {
+      "id": "R001",
+      "title": "图文一致性检查",
+      "description": "若图像内容与地类说明明显不一致，应标记为疑似异常。"
+    },
+    {
+      "id": "R002",
+      "title": "耕地疑似建筑占用",
+      "description": "若地块申报为耕地，但照片中出现疑似建筑物或硬化地表，应提升异常等级。"
+    },
+    {
+      "id": "R003",
+      "title": "举证完整性检查",
+      "description": "若照片存在明显视角缺失、死角漏拍或证据不足，应建议人工复核。"
+    },
+    {
+      "id": "R004",
+      "title": "举证真实性检查",
+      "description": "若怀疑存在异地拍照、旧图新用或避重就轻，应标记为高风险异常。"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "parcel_id": "FJ-2026-001",
+  "image_path": "data/raw/example_parcel.jpg",
+  "text_description": "地块申报为耕地，外业举证照片中出现疑似建筑物，且拍摄角度有限。",
+  "land_type": "耕地",
+  "rules": [
+    "若耕地中出现疑似建筑物，应标记为疑似异常。",
+    "若证据不完整，应建议人工复核。"
+  ],
+  "metadata": {
+    "region": "福建",
+    "source": "demo"
+  }
+}
