@@ -19,7 +19,24 @@ class PipelineSmokeTest(unittest.TestCase):
 
         self.assertEqual(result.parcel_id, "FJ-2026-001")
         self.assertTrue(result.is_abnormal)
+        self.assertIn("R002", result.rule_hits)
         self.assertGreaterEqual(field_completeness(result), 1.0)
+
+    def test_rule_library_text_does_not_trigger_mock_by_itself(self) -> None:
+        request = InspectionRequest(
+            parcel_id="FJ-2026-NORMAL",
+            image_path="data/raw/normal.jpg",
+            text_description="现场为正常厂房及配套道路，图文一致。",
+            land_type="建设用地",
+            metadata={"source": "smoke"},
+        )
+
+        pipeline = build_default_pipeline()
+        result = pipeline.run(request)
+
+        self.assertFalse(result.is_abnormal)
+        self.assertFalse(result.requires_manual_review)
+        self.assertEqual(result.rule_hits, [])
 
 
 if __name__ == "__main__":

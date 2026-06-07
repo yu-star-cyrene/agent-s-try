@@ -1,34 +1,191 @@
 {
   "project_name": "多模态大模型驱动的图斑审查预检系统",
   "scene": "国土图斑审查预检",
+  "version": "0.2.0",
+  "last_updated": "2026-06-05",
   "output_fields": [
     "is_abnormal",
     "issue_type",
     "reason",
     "evidence",
     "confidence",
-    "requires_manual_review"
+    "requires_manual_review",
+    "rule_hits"
+  ],
+  "severity_levels": [
+    "low",
+    "medium",
+    "high"
   ],
   "rules": [
     {
       "id": "R001",
       "title": "图文一致性检查",
-      "description": "若图像内容与地类说明明显不一致，应标记为疑似异常。"
+      "category": "图文一致性",
+      "severity": "medium",
+      "applies_to": [
+        "全部地类"
+      ],
+      "description": "若图像内容与地类说明、举证文本或地块用途明显不一致，应标记为疑似异常。",
+      "trigger_conditions": [
+        "图像中出现的主要地物与文本描述不一致",
+        "图像中出现的土地利用特征与申报地类冲突"
+      ],
+      "required_evidence": [
+        "image",
+        "text_description"
+      ],
+      "decision_logic": "当图像内容与文本申报用途存在明显冲突时，判定为疑似异常；若冲突不充分，则进入人工复核。",
+      "output": {
+        "is_abnormal": true,
+        "issue_type": "图文不一致",
+        "requires_manual_review": true
+      },
+      "priority": 80,
+      "enabled": true,
+      "source": "业务规则初稿"
     },
     {
       "id": "R002",
       "title": "耕地疑似建筑占用",
-      "description": "若地块申报为耕地，但照片中出现疑似建筑物或硬化地表，应提升异常等级。"
+      "category": "土地利用冲突",
+      "severity": "high",
+      "applies_to": [
+        "耕地"
+      ],
+      "description": "若地块申报为耕地，但图像中出现疑似建筑物或硬化地表，应提升异常等级。",
+      "trigger_conditions": [
+        "图像中出现疑似建筑物",
+        "图像中出现硬化地表",
+        "文本或属性信息显示该地块为耕地"
+      ],
+      "required_evidence": [
+        "image",
+        "land_type_text"
+      ],
+      "decision_logic": "当地类为耕地且图像出现建筑物、院落或硬化地表时，判定为高风险疑似异常；若拍摄角度不足，则保留高风险并建议人工复核。",
+      "output": {
+        "is_abnormal": true,
+        "issue_type": "耕地疑似建筑占用",
+        "requires_manual_review": true
+      },
+      "priority": 90,
+      "enabled": true,
+      "source": "业务规则初稿"
     },
     {
       "id": "R003",
       "title": "举证完整性检查",
-      "description": "若照片存在明显视角缺失、死角漏拍或证据不足，应建议人工复核。"
+      "category": "举证质量",
+      "severity": "medium",
+      "applies_to": [
+        "全部地类"
+      ],
+      "description": "若照片存在明显视角缺失、死角漏拍、遮挡严重或证据不足，应建议人工复核。",
+      "trigger_conditions": [
+        "拍摄角度有限",
+        "关键区域被遮挡",
+        "缺少全景或近景证据",
+        "无法支撑明确判定"
+      ],
+      "required_evidence": [
+        "image",
+        "metadata"
+      ],
+      "decision_logic": "当证据链不足以支持稳定结论时，不直接给出强结论，而是将该样本标记为需人工复核。",
+      "output": {
+        "is_abnormal": false,
+        "issue_type": "证据不足",
+        "requires_manual_review": true
+      },
+      "priority": 70,
+      "enabled": true,
+      "source": "业务规则初稿"
     },
     {
       "id": "R004",
       "title": "举证真实性检查",
-      "description": "若怀疑存在异地拍照、旧图新用或避重就轻，应标记为高风险异常。"
+      "category": "真实性风险",
+      "severity": "high",
+      "applies_to": [
+        "全部地类"
+      ],
+      "description": "若怀疑存在异地拍照、旧图新用、避重就轻或时间地点信息冲突，应标记为高风险异常。",
+      "trigger_conditions": [
+        "图像内容与地块位置明显不匹配",
+        "拍摄时间与任务时间冲突",
+        "同一地块多次提交照片内容重复异常",
+        "仅拍摄低风险区域，疑似避重就轻"
+      ],
+      "required_evidence": [
+        "image",
+        "metadata",
+        "text_description"
+      ],
+      "decision_logic": "当图像、时间、位置或举证范围存在明显异常时，直接判为高风险异常并进入人工复核。",
+      "output": {
+        "is_abnormal": true,
+        "issue_type": "举证真实性风险",
+        "requires_manual_review": true
+      },
+      "priority": 95,
+      "enabled": true,
+      "source": "业务规则初稿"
+    },
+    {
+      "id": "R005",
+      "title": "林地疑似硬化或建设占用",
+      "category": "土地利用冲突",
+      "severity": "high",
+      "applies_to": [
+        "林地"
+      ],
+      "description": "若地块申报为林地，但图像中出现道路硬化、施工场地或建筑结构，应视为疑似占用。",
+      "trigger_conditions": [
+        "图像中出现道路硬化痕迹",
+        "图像中出现施工设施或建筑结构",
+        "文本或属性信息显示该地块为林地"
+      ],
+      "required_evidence": [
+        "image",
+        "land_type_text"
+      ],
+      "decision_logic": "当地类为林地且图像中出现明显非林地利用特征时，判定为高风险异常。",
+      "output": {
+        "is_abnormal": true,
+        "issue_type": "林地疑似占用",
+        "requires_manual_review": true
+      },
+      "priority": 88,
+      "enabled": true,
+      "source": "业务规则扩展"
+    },
+    {
+      "id": "R006",
+      "title": "建设用地用途异常检查",
+      "category": "用途异常",
+      "severity": "medium",
+      "applies_to": [
+        "建设用地"
+      ],
+      "description": "若建设用地申报用途与现场影像明显不匹配，如长期荒置、重大用途偏离，应标记异常。",
+      "trigger_conditions": [
+        "申报为建设用地但现场长期荒置",
+        "申报用途与现场经营或施工状态明显不符"
+      ],
+      "required_evidence": [
+        "image",
+        "text_description"
+      ],
+      "decision_logic": "当建设用地的申报用途与现场使用情况明显不一致时，判定为疑似异常；证据不足时保留人工复核。",
+      "output": {
+        "is_abnormal": true,
+        "issue_type": "建设用地用途异常",
+        "requires_manual_review": true
+      },
+      "priority": 75,
+      "enabled": true,
+      "source": "业务规则扩展"
     }
   ]
 }

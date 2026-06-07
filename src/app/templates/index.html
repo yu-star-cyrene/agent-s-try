@@ -121,6 +121,19 @@
               </ul>
             </div>
 
+            <div class="narrative-card">
+              <h3>命中规则</h3>
+              {% if result.rule_hits %}
+                <ul class="evidence-list">
+                  {% for item in result.rule_hits %}
+                    <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p>未命中高风险规则。</p>
+              {% endif %}
+            </div>
+
             <details class="raw-block">
               <summary>查看原始输出 JSON</summary>
               <pre>{{ result.raw_output }}</pre>

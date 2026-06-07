@@ -1,0 +1,162 @@
+{
+  "dataset_name": "parcel_precheck_mvp_samples",
+  "version": "0.1.0",
+  "description": "第一阶段用于规则验证、Prompt设计与演示的标准样本集。",
+  "samples": [
+    {
+      "sample_id": "S001",
+      "parcel_id": "FJ-2026-001",
+      "image_path": "data/raw/images/FJ-2026-001.jpg",
+      "text_description": "申请地块为耕地，照片中可见疑似建筑及院落硬化，拍摄角度有限。",
+      "land_type": "耕地",
+      "metadata": {
+        "region": "福建",
+        "shooting_time": "2026-05-10",
+        "source": "demo",
+        "notes": "图像疑似存在建筑线索"
+      },
+      "expected_result": {
+        "parcel_id": "FJ-2026-001",
+        "is_abnormal": true,
+        "issue_type": "耕地疑似建筑占用",
+        "reason": "图像中存在疑似建筑物和硬化地表，文本地类为耕地，存在明显用途冲突。",
+        "evidence": [
+          "图像出现疑似建筑物",
+          "图像出现硬化地表",
+          "文本说明为耕地"
+        ],
+        "confidence": 0.84,
+        "requires_manual_review": true,
+        "rule_hits": [
+          "R002",
+          "R003"
+        ]
+      },
+      "applied_rule_ids": [
+        "R002",
+        "R003"
+      ]
+    },
+    {
+      "sample_id": "S002",
+      "parcel_id": "FJ-2026-002",
+      "image_path": "data/raw/images/FJ-2026-002.jpg",
+      "text_description": "申报地类为耕地，当前照片只能看到地块一角，存在遮挡，无法完整判断是否有违规建设。",
+      "land_type": "耕地",
+      "metadata": {
+        "region": "福建",
+        "shooting_time": "2026-05-11",
+        "source": "demo",
+        "notes": "证据链不完整"
+      },
+      "expected_result": {
+        "parcel_id": "FJ-2026-002",
+        "is_abnormal": false,
+        "issue_type": "证据不足",
+        "reason": "图像存在遮挡和视角缺失，无法支撑稳定结论，应转人工复核。",
+        "evidence": [
+          "拍摄角度有限",
+          "关键区域被遮挡"
+        ],
+        "confidence": 0.41,
+        "requires_manual_review": true,
+        "rule_hits": [
+          "R003"
+        ]
+      },
+      "applied_rule_ids": [
+        "R003"
+      ]
+    },
+    {
+      "sample_id": "S003",
+      "parcel_id": "FJ-2026-003",
+      "image_path": "data/raw/images/FJ-2026-003.jpg",
+      "text_description": "申报地类为建设用地，现场为正常厂房及配套道路，图文一致，无明显异常。",
+      "land_type": "建设用地",
+      "metadata": {
+        "region": "福建",
+        "shooting_time": "2026-05-12",
+        "source": "demo",
+        "notes": "正常样本"
+      },
+      "expected_result": {
+        "parcel_id": "FJ-2026-003",
+        "is_abnormal": false,
+        "issue_type": "未发现明显异常",
+        "reason": "图像内容与建设用地文本描述一致，未触发异常规则。",
+        "evidence": [
+          "图像内容与文本说明一致"
+        ],
+        "confidence": 0.76,
+        "requires_manual_review": false,
+        "rule_hits": []
+      },
+      "applied_rule_ids": []
+    },
+    {
+      "sample_id": "S004",
+      "parcel_id": "FJ-2026-004",
+      "image_path": "data/raw/images/FJ-2026-004.jpg",
+      "text_description": "任务要求为2026年5月现场举证，但提交照片时间戳异常，且画面场景与地块信息不匹配。",
+      "land_type": "建设用地",
+      "metadata": {
+        "region": "福建",
+        "shooting_time": "2024-11-03",
+        "task_time": "2026-05-12",
+        "source": "demo",
+        "notes": "疑似旧图新用"
+      },
+      "expected_result": {
+        "parcel_id": "FJ-2026-004",
+        "is_abnormal": true,
+        "issue_type": "举证真实性风险",
+        "reason": "照片时间与任务时间冲突，且场景与地块信息不匹配，存在旧图新用或异地拍照风险。",
+        "evidence": [
+          "拍摄时间异常",
+          "图像场景与地块信息不匹配"
+        ],
+        "confidence": 0.91,
+        "requires_manual_review": true,
+        "rule_hits": [
+          "R004"
+        ]
+      },
+      "applied_rule_ids": [
+        "R004"
+      ]
+    },
+    {
+      "sample_id": "S005",
+      "parcel_id": "FJ-2026-005",
+      "image_path": "data/raw/images/FJ-2026-005.jpg",
+      "text_description": "地块申报为林地，照片中可见连续硬化道路和施工堆料区。",
+      "land_type": "林地",
+      "metadata": {
+        "region": "福建",
+        "shooting_time": "2026-05-13",
+        "source": "demo",
+        "notes": "林地疑似占用"
+      },
+      "expected_result": {
+        "parcel_id": "FJ-2026-005",
+        "is_abnormal": true,
+        "issue_type": "林地疑似占用",
+        "reason": "图像中出现硬化道路和施工迹象，与林地属性明显冲突。",
+        "evidence": [
+          "图像出现道路硬化痕迹",
+          "图像出现施工堆料区",
+          "文本说明为林地"
+        ],
+        "confidence": 0.86,
+        "requires_manual_review": true,
+        "rule_hits": [
+          "R005"
+        ]
+      },
+      "applied_rule_ids": [
+        "R005"
+      ]
+    }
+  ]
+}

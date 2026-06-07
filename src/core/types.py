@@ -21,6 +21,7 @@ class InspectionResult:
     confidence: float
     requires_manual_review: bool
     evidence: list[str] = field(default_factory=list)
+    rule_hits: list[str] = field(default_factory=list)
     raw_output: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -32,5 +33,6 @@ class InspectionResult:
             "confidence": self.confidence,
             "requires_manual_review": self.requires_manual_review,
             "evidence": self.evidence,
+            "rule_hits": self.rule_hits,
             "raw_output": self.raw_output,
         }

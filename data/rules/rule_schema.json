@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Parcel Precheck Rule Bundle",
+  "type": "object",
+  "required": [
+    "project_name",
+    "scene",
+    "output_fields",
+    "rules"
+  ],
+  "properties": {
+    "project_name": {
+      "type": "string"
+    },
+    "scene": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "last_updated": {
+      "type": "string"
+    },
+    "output_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "severity_levels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "category",
+          "severity",
+          "applies_to",
+          "description",
+          "trigger_conditions",
+          "required_evidence",
+          "decision_logic",
+          "output",
+          "priority",
+          "enabled",
+          "source"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "applies_to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "trigger_conditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "required_evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "decision_logic": {
+            "type": "string"
+          },
+          "output": {
+            "type": "object",
+            "required": [
+              "is_abnormal",
+              "issue_type",
+              "requires_manual_review"
+            ],
+            "properties": {
+              "is_abnormal": {
+                "type": "boolean"
+              },
+              "issue_type": {
+                "type": "string"
+              },
+              "requires_manual_review": {
+                "type": "boolean"
+              }
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
