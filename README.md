@@ -1,13 +1,18 @@
-# 图斑审查预检系统初步架构
+# 图斑审查预检系统
 
-这个目录是根据现有申报材料先搭起来的第一版项目骨架，目标不是一步到位，而是先把后续开发、申报整理、演示验证三条线放到同一个工作区里。
+本项目面向国土图斑审查场景，目标是构建一套“规则库 + Prompt 推理 + 结构化输出 + 批量评测”的多模态预检原型系统。当前版本已经不再只是目录骨架，而是完成了规则驱动链路和第一版评测闭环。
 
-## 材料提炼
+## 当前状态
 
-- 项目主题已经比较明确：围绕“多模态大模型驱动的图斑审查预检系统”展开。
-- 核心问题来自人工审查压力大、图文不一致、异地拍照、旧图新用、死角漏拍、耕地疑似违规占用等场景。
-- 前期内部草稿已经把任务拆成了五个天然模块：业务规则与样本、多模态模型接入、提示词与推理设计、结果结构化、系统集成与评测。
-- 项目目录按“五模块协作”去设计，便于多人并行推进。
+- 已建立结构化规则库：`data/rules/rule_template.json`，当前包含图文一致性、耕地疑似建筑占用、举证完整性、举证真实性、林地疑似占用、建设用地用途异常等规则。
+- 已建立格式约束：`data/rules/rule_schema.json` 和 `data/samples/sample_schema.json`，用于固定规则和样本字段。
+- 已建立样本集：`data/samples/sample_set.json`，当前包含 5 条 MVP 样本和标准答案。
+- 已接通 Prompt 链路：`prompt_builder.py` 会读取结构化规则字段，生成带规则 ID、触发条件、证据要求和输出约束的 Prompt。
+- 已支持结果追溯：输出结果包含 `rule_hits`，可以说明命中了哪些规则。
+- 已接通批量评测：`scripts/evaluate_samples.py` 可以批量运行样本并生成评测报告。
+- 已保留 Web 和 CLI 演示入口：支持单条样本演示和页面展示。
+
+当前仍然需要注意：`MockModelClient` 只是用于验证流程的模拟模型，还不是真实多模态模型；`sample_set.json` 中的图片路径仍是占位路径，后续需要补充真实或脱敏样例图片。
 
 ## 当前目录
 
@@ -16,10 +21,17 @@
 ├─ README.md
 ├─ configs/
 ├─ data/
+│  ├─ rules/
+│  ├─ samples/
+│  ├─ raw/
+│  ├─ interim/
+│  └─ processed/
 ├─ docs/
 ├─ examples/
 ├─ materials/
 ├─ outputs/
+│  ├─ logs/
+│  └─ reports/
 ├─ scripts/
 ├─ src/
 └─ tests/
@@ -27,25 +39,35 @@
 
 ## 模块对应关系
 
-- `src/modules/rule_engine`：业务规则、字段定义、规则加载。
-- `src/modules/model_gateway`：多模态模型接口层，后续可接 OpenAI、Qwen、Gemini 或本地模型。
-- `src/modules/prompt_engine`：审查提示词、Few-shot、审查流程编排。
-- `src/modules/postprocess`：模型输出解析、结构化、容错修补。
-- `src/modules/evaluation`：评测指标、字段完整率、结果对比。
-- `src/app`：演示入口，后面可以扩成 CLI、Web Demo 或答辩展示版本。
-
-## 现在已经放进去的内容
-
-- 公开仓库只保留代码骨架、脱敏说明和示例数据。
-- 含真实姓名与申报细节的原始材料已移出仓库，单独保存在本地私密目录。
-- 已写好一版可运行的 Python 骨架，先用 `MockModelClient` 打通流程。
-- 已补了目录说明、材料梳理和初步工作分工文档。
+- `src/modules/rule_engine`：加载规则库，筛选启用规则，并按优先级提供给推理流程。
+- `src/modules/prompt_engine`：根据地块输入和结构化规则生成审查 Prompt。
+- `src/modules/model_gateway`：模型接入层；当前使用 `MockModelClient`，后续可替换为真实多模态模型。
+- `src/modules/postprocess`：解析模型输出，统一转换为结构化结果。
+- `src/modules/evaluation`：提供字段完整率等基础评测函数。
+- `scripts/evaluate_samples.py`：批量读取样本集，运行 pipeline，并输出评测报告。
+- `src/app`：Web 演示入口。
 
 ## 运行方式
 
-### 网页版
+### 开发前解密
 
-推荐直接启动本地网页：
+公开仓库会把重点源码、规则和样本放进加密包。继续推进项目之前，先运行：
+
+```bat
+tools\decrypt_private.bat
+```
+
+输入项目共享 key 后，会恢复 `src/`、`scripts/`、`tests/`、`data/rules/`、`data/samples/` 等受保护内容。
+
+如果你想用环境变量避免重复输入，可以先在当前终端设置：
+
+```bat
+set DACHUANG_PRIVATE_KEY=你的共享key
+```
+
+不要把 key 写进仓库、文档或提交记录。
+
+### 网页演示
 
 ```bash
 python run_web.py
@@ -57,32 +79,40 @@ python run_web.py
 http://127.0.0.1:5000
 ```
 
-如果你更想直接双击启动，也可以用根目录下的：
+也可以双击运行：
 
 ```text
 run_web.bat
 ```
 
-它会自动：
-
-- 切换到项目根目录
-- 启动 Flask 网页服务
-- 自动打开浏览器访问 `http://127.0.0.1:5000`
-
-### 终端版
-
-如果只是临时看结构化输出，也保留了命令行入口：
+### 单条 Demo
 
 ```bash
 python run_demo.py
 python -m src.app.cli_demo
 ```
 
-如果你当前就在 `src/app` 目录下，也可以直接运行：
+### 批量评测
 
 ```bash
-python cli_demo.py
+python scripts/evaluate_samples.py
 ```
+
+默认读取：
+
+```text
+data/samples/sample_set.json
+```
+
+默认输出：
+
+```text
+outputs/reports/evaluation_summary.json
+outputs/reports/evaluation_details.json
+outputs/reports/evaluation_details.csv
+```
+
+说明：`outputs/reports/` 是本地生成目录，当前在 `.gitignore` 中，适合每次运行后重新生成。
 
 ### 测试
 
@@ -90,13 +120,67 @@ python cli_demo.py
 python -m unittest discover -s tests -t . -p "test*.py"
 ```
 
-注意：
+当前冒烟测试覆盖：
 
-- `python -m src.app.cli_demo` 只能在项目根目录 `大创多模态/` 下运行。
-- 现在更推荐你直接用 `python run_web.py`，这样就是网页入口，不用盯着终端看 JSON。
+- 单条 pipeline 运行
+- 正常样本不被规则库误触发
+- Web 页面渲染与表单提交
+- 批量评测脚本生成报告
+
+## 当前评测结果
+
+在当前 5 条 MVP 样本和 `MockModelClient` 下，批量评测链路已经跑通，生成了 summary、details 和 CSV 三类报告。
+
+当前 1.0 指标只代表“Mock 环境下流程闭环正确”，不代表真实多模态模型效果。后续接入真实模型后，需要使用同一批样本重新评测并对比结果。
 
 ## 下一步建议
 
-1. 先补 `data/rules/rule_template.json`，把审查规则写细。
-2. 再把 `MockModelClient` 替换成真实多模态模型接口。
-3. 按 `docs/初步工作分工.md` 认领模块后，开始并行推进。
+1. 扩充 `data/samples/sample_set.json` 到 20-30 条样本，保证每条规则至少有 2-3 条覆盖样本。
+2. 准备真实或脱敏图片，将 `image_path` 从占位路径替换为可读取文件。
+3. 接入真实多模态模型，替换或并行运行 `MockModelClient`。
+4. 使用同一套样本集重新运行 `scripts/evaluate_samples.py`，对比 Mock 与真实模型结果。
+5. 将评测结果整理成中期检查或答辩展示材料。
+
+## 公开仓库加密工作流
+
+由于仓库需要公开，重点源码和真实数据不直接以明文上传。当前加密清单位于：
+
+```text
+.private-bundle-manifest.json
+```
+
+受保护内容包括：
+
+- `src/`
+- `scripts/`
+- `tests/`
+- `configs/`
+- `data/rules/`
+- `data/samples/`
+- `data/raw/images/`
+- `data/raw/uploads/`
+- `run_demo.py`
+- `run_web.py`
+- `run_web.bat`
+
+手动加密：
+
+```bat
+tools\encrypt_private.bat --remove-plaintext
+```
+
+上传到 GitHub：
+
+```bat
+post_github.bat "你的提交说明"
+```
+
+`post_github.bat` 会在 `git add` 前自动调用加密脚本，生成：
+
+```text
+private_bundle.zip.dcb
+```
+
+加密成功后，受保护的明文路径会从工作区删除，然后再提交和推送。下一次继续开发时，运行 `tools\decrypt_private.bat` 并输入同一个 key 即可恢复。
+
+加密实现说明：当前机器没有安装 `age`，所以项目内置了 PowerShell/.NET 加密工具，使用 `PBKDF2 + AES-256-CBC + HMAC-SHA256`。key 只从交互输入或 `DACHUANG_PRIVATE_KEY` 环境变量读取，不会写入文件。

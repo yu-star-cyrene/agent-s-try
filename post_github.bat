@@ -10,6 +10,17 @@ if errorlevel 1 (
     exit /b 1
 )
 
+if /I not "%SKIP_PRIVATE_ENCRYPT%"=="1" (
+    echo.
+    echo [ENCRYPT] Building encrypted private bundle before publishing
+    echo [ENCRYPT] You will be asked for the shared project key.
+    call "%~dp0tools\encrypt_private.bat" --remove-plaintext
+    if errorlevel 1 goto :error
+) else (
+    echo.
+    echo [ENCRYPT] SKIP_PRIVATE_ENCRYPT=1, private encryption step skipped.
+)
+
 git status --porcelain >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Failed to read Git status. Please check that Git is installed.

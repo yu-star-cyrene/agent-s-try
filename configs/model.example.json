@@ -1,9 +1,0 @@
-{
-  "project_name": "parcel-precheck-system",
-  "model_provider": "replace_me",
-  "model_name": "replace_me",
-  "api_base": "https://example.com/v1",
-  "api_key_env": "MODEL_API_KEY",
-  "timeout_seconds": 60,
-  "max_retries": 2
-}

@@ -1,0 +1,18 @@
+{
+  "bundle": "private_bundle.zip.dcb",
+  "format": "dachuang-bundle-v1",
+  "description": "Protected source, rules, samples, tests and local run entrypoints.",
+  "protected_paths": [
+    "src",
+    "scripts",
+    "tests",
+    "configs",
+    "data/rules",
+    "data/samples",
+    "data/raw/images",
+    "data/raw/uploads",
+    "run_demo.py",
+    "run_web.py",
+    "run_web.bat"
+  ]
+}

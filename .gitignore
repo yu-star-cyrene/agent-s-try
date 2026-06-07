@@ -15,6 +15,36 @@ outputs/reports/
 tmp_test_dir/
 tmp_crypto_handbook/
 
+# Encrypted public bundle
+private_bundle.zip.dcb
+private_bundle.zip.age
+private_bundle.zip
+
+# Protected plaintext restored by tools/decrypt_private.bat.
+# These paths are intentionally ignored after they are removed from git history.
+src/
+scripts/
+tests/
+configs/
+data/rules/
+data/samples/
+run_demo.py
+run_web.py
+run_web.bat
+
+# Local secrets and sensitive data
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.secret
+data/raw/images/
+data/raw/uploads/
+data/private/
+data/real/
+data/sensitive/
+
 materials/application_docs/*
 !materials/application_docs/README.md
 materials/attachments/*
