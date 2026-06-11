@@ -1,13 +1,15 @@
 # 图斑审查预检系统
 
-本项目面向国土图斑审查场景，目标是构建一套“规则库 + Prompt 推理 + 结构化输出 + 批量评测”的多模态预检原型系统。当前版本已经不再只是目录骨架，而是完成了规则驱动链路和第一版评测闭环。
+本项目面向国土图斑审查场景，目标是构建一套“规则库 + Prompt 推理 + 结构化输出 + 批量评测”的多模态预检原型系统。当前版本已经不再只是目录骨架，而是完成了规则驱动链路、规则覆盖样本集和批量评测闭环。
 
 ## 当前状态
 
 - 已建立结构化规则库：`data/rules/rule_template.json`，当前包含图文一致性、耕地疑似建筑占用、举证完整性、举证真实性、林地疑似占用、建设用地用途异常等规则。
 - 已建立格式约束：`data/rules/rule_schema.json` 和 `data/samples/sample_schema.json`，用于固定规则和样本字段。
-- 已建立样本集：`data/samples/sample_set.json`，当前包含 5 条 MVP 样本和标准答案。
+- 已建立样本集：`data/samples/sample_set.json`，当前包含 26 条规则覆盖样本和标准答案，覆盖 R001-R006 以及正常样本。
 - 已接通 Prompt 链路：`prompt_builder.py` 会读取结构化规则字段，生成带规则 ID、触发条件、证据要求和输出约束的 Prompt。
+- 已接入代码辅助视觉预检：`vision_precheck` 会先提取图片状态、尺寸和 EXIF 等低成本证据，再注入 `metadata.vision_precheck`。
+- 已建立 Qwen-VL 接入骨架：`QwenVLClient` 支持通过配置文件接入 OpenAI-compatible 图文接口。
 - 已支持结果追溯：输出结果包含 `rule_hits`，可以说明命中了哪些规则。
 - 已接通批量评测：`scripts/evaluate_samples.py` 可以批量运行样本并生成评测报告。
 - 已保留 Web 和 CLI 演示入口：支持单条样本演示和页面展示。
@@ -40,8 +42,9 @@
 ## 模块对应关系
 
 - `src/modules/rule_engine`：加载规则库，筛选启用规则，并按优先级提供给推理流程。
+- `src/modules/vision_precheck`：在调用多模态模型前提取图片可读性、尺寸、EXIF 等辅助证据。
 - `src/modules/prompt_engine`：根据地块输入和结构化规则生成审查 Prompt。
-- `src/modules/model_gateway`：模型接入层；当前使用 `MockModelClient`，后续可替换为真实多模态模型。
+- `src/modules/model_gateway`：模型接入层；当前保留 `MockModelClient`，并已新增 `QwenVLClient` 骨架。
 - `src/modules/postprocess`：解析模型输出，统一转换为结构化结果。
 - `src/modules/evaluation`：提供字段完整率等基础评测函数。
 - `scripts/evaluate_samples.py`：批量读取样本集，运行 pipeline，并输出评测报告。
@@ -92,6 +95,16 @@ python run_demo.py
 python -m src.app.cli_demo
 ```
 
+如需切换到配置化真实模型，可先设置：
+
+```bat
+set DACHUANG_MODEL_CONFIG=configs\model.example.json
+set DASHSCOPE_API_KEY=你的DashScopeKey
+python run_demo.py
+```
+
+不设置 `DACHUANG_MODEL_CONFIG` 时，系统默认继续使用 Mock 模型。
+
 ### 批量评测
 
 ```bash
@@ -112,6 +125,8 @@ outputs/reports/evaluation_details.json
 outputs/reports/evaluation_details.csv
 ```
 
+其中 `evaluation_summary.json` 包含总体准确率和 `rule_metrics`，可查看 R001-R006 各规则的样本覆盖、召回率和精确率。
+
 说明：`outputs/reports/` 是本地生成目录，当前在 `.gitignore` 中，适合每次运行后重新生成。
 
 ### 测试
@@ -129,16 +144,16 @@ python -m unittest discover -s tests -t . -p "test*.py"
 
 ## 当前评测结果
 
-在当前 5 条 MVP 样本和 `MockModelClient` 下，批量评测链路已经跑通，生成了 summary、details 和 CSV 三类报告。
+在当前 26 条规则覆盖样本和 `MockModelClient` 下，批量评测链路可以生成 summary、details 和 CSV 三类报告；summary 中已经包含按规则统计的 `rule_metrics`。
 
 当前 1.0 指标只代表“Mock 环境下流程闭环正确”，不代表真实多模态模型效果。后续接入真实模型后，需要使用同一批样本重新评测并对比结果。
 
 ## 下一步建议
 
-1. 扩充 `data/samples/sample_set.json` 到 20-30 条样本，保证每条规则至少有 2-3 条覆盖样本。
+1. 设置真实 Qwen-VL API key，使用 `configs/model.example.json` 跑通一条真实模型调用。
 2. 准备真实或脱敏图片，将 `image_path` 从占位路径替换为可读取文件。
-3. 接入真实多模态模型，替换或并行运行 `MockModelClient`。
-4. 使用同一套样本集重新运行 `scripts/evaluate_samples.py`，对比 Mock 与真实模型结果。
+3. 使用同一套样本集重新运行 `scripts/evaluate_samples.py`，对比 Mock 与真实模型结果。
+4. 继续增强 `vision_precheck`，补充 EXIF 时间/GPS 对比、OpenCV 质量检测、YOLO/SAM 证据提取。
 5. 将评测结果整理成中期检查或答辩展示材料。
 
 ## 公开仓库加密工作流

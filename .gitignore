@@ -16,7 +16,7 @@ tmp_test_dir/
 tmp_crypto_handbook/
 
 # Encrypted public bundle
-private_bundle.zip.dcb
+!private_bundle.zip.dcb
 private_bundle.zip.age
 private_bundle.zip
 

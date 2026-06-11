@@ -92,6 +92,17 @@ function Resolve-InProjectPath {
     return [IO.Path]::GetFullPath($combined)
 }
 
+function Remove-BundleNoise {
+    param([string]$PayloadRoot)
+
+    Get-ChildItem -LiteralPath $PayloadRoot -Recurse -Force -Directory -Filter "__pycache__" |
+        Remove-Item -Recurse -Force
+    Get-ChildItem -LiteralPath $PayloadRoot -Recurse -Force -File -Include "*.pyc", "*.pyo" |
+        Remove-Item -Force
+    Get-ChildItem -LiteralPath $PayloadRoot -Recurse -Force -Directory -Filter ".pytest_cache" |
+        Remove-Item -Recurse -Force
+}
+
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $manifestFullPath = Resolve-InProjectPath -ProjectRoot $projectRoot -RelativePath $ManifestPath
 if (-not (Test-Path -LiteralPath $manifestFullPath)) {
@@ -137,6 +148,7 @@ if ($copiedPaths.Count -eq 0) {
 }
 
 ($manifest | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath (Join-Path $payloadRoot "_private_bundle_manifest.json") -Encoding UTF8
+Remove-BundleNoise -PayloadRoot $payloadRoot
 Compress-Archive -Path (Join-Path $payloadRoot "*") -DestinationPath $zipPath -Force
 
 $passphrase = Get-PlainTextSecret
