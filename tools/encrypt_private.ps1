@@ -97,10 +97,56 @@ function Remove-BundleNoise {
 
     Get-ChildItem -LiteralPath $PayloadRoot -Recurse -Force -Directory -Filter "__pycache__" |
         Remove-Item -Recurse -Force
-    Get-ChildItem -LiteralPath $PayloadRoot -Recurse -Force -File -Include "*.pyc", "*.pyo" |
+    Get-ChildItem -LiteralPath $PayloadRoot -Recurse -Force -File |
+        Where-Object { $_.Extension -in @(".pyc", ".pyo") } |
         Remove-Item -Force
     Get-ChildItem -LiteralPath $PayloadRoot -Recurse -Force -Directory -Filter ".pytest_cache" |
         Remove-Item -Recurse -Force
+}
+
+function Get-PayloadFileCount {
+    param([string]$PayloadRoot)
+
+    $files = Get-ChildItem -LiteralPath $PayloadRoot -Recurse -Force -File |
+        Where-Object {
+            $_.Name -ne "_private_bundle_manifest.json" -and
+            $_.Name -ne "_private_bundle_stats.json" -and
+            $_.Extension -notin @(".pyc", ".pyo")
+        }
+    return @($files).Count
+}
+
+function Assert-ValidPayload {
+    param(
+        [string]$PayloadRoot,
+        [int]$CopiedPathCount
+    )
+
+    $payloadManifestPath = Join-Path $PayloadRoot "_private_bundle_manifest.json"
+    if (-not (Test-Path -LiteralPath $payloadManifestPath)) {
+        throw "Internal error: payload manifest was not written."
+    }
+
+    $fileCount = Get-PayloadFileCount -PayloadRoot $PayloadRoot
+    if ($CopiedPathCount -gt 0 -and $fileCount -eq 0) {
+        throw "Refusing to create encrypted bundle: protected paths were copied but payload contains no files."
+    }
+}
+
+function Write-BundleStats {
+    param(
+        [string]$PayloadRoot,
+        [object]$CopiedPaths
+    )
+
+    $stats = [ordered]@{
+        generated_at = (Get-Date).ToString("s")
+        copied_path_count = $CopiedPaths.Count
+        payload_file_count = Get-PayloadFileCount -PayloadRoot $PayloadRoot
+        copied_paths = @($CopiedPaths)
+    }
+    ($stats | ConvertTo-Json -Depth 10) |
+        Set-Content -LiteralPath (Join-Path $PayloadRoot "_private_bundle_stats.json") -Encoding UTF8
 }
 
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
@@ -147,37 +193,45 @@ if ($copiedPaths.Count -eq 0) {
     throw "No protected paths were found to encrypt, and no encrypted bundle exists yet."
 }
 
-($manifest | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath (Join-Path $payloadRoot "_private_bundle_manifest.json") -Encoding UTF8
-Remove-BundleNoise -PayloadRoot $payloadRoot
-Compress-Archive -Path (Join-Path $payloadRoot "*") -DestinationPath $zipPath -Force
+try {
+    ($manifest | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath (Join-Path $payloadRoot "_private_bundle_manifest.json") -Encoding UTF8
+    Remove-BundleNoise -PayloadRoot $payloadRoot
+    Assert-ValidPayload -PayloadRoot $payloadRoot -CopiedPathCount $copiedPaths.Count
+    Write-BundleStats -PayloadRoot $payloadRoot -CopiedPaths $copiedPaths
+    Assert-ValidPayload -PayloadRoot $payloadRoot -CopiedPathCount $copiedPaths.Count
+    Compress-Archive -Path (Join-Path $payloadRoot "*") -DestinationPath $zipPath -Force
 
-$passphrase = Get-PlainTextSecret
-if ([string]::IsNullOrWhiteSpace($passphrase)) {
-    Remove-Item -LiteralPath $tempRoot -Recurse -Force
-    throw "Encryption key cannot be empty."
+    $passphrase = Get-PlainTextSecret
+    if ([string]::IsNullOrWhiteSpace($passphrase)) {
+        throw "Encryption key cannot be empty."
+    }
+
+    $plainBytes = [IO.File]::ReadAllBytes($zipPath)
+    $encryptedBytes = Protect-Bytes -PlainBytes $plainBytes -Passphrase $passphrase
+    $outputParent = Split-Path -Parent $outputFullPath
+    if ($outputParent) {
+        New-Item -ItemType Directory -Force -Path $outputParent | Out-Null
+    }
+    [IO.File]::WriteAllBytes($outputFullPath, $encryptedBytes)
+
+    if ($RemovePlaintext) {
+        foreach ($relative in $copiedPaths) {
+            $target = Resolve-InProjectPath -ProjectRoot $projectRoot -RelativePath $relative
+            if (-not $target.StartsWith($projectRoot, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Refusing to remove path outside project: $target"
+            }
+            if ($target -match "\\.git($|\\)" -or $target -match "\\tools($|\\)") {
+                throw "Refusing to remove protected tooling path: $target"
+            }
+            if (Test-Path -LiteralPath $target) {
+                Remove-Item -LiteralPath $target -Recurse -Force
+            }
+        }
+    }
 }
-
-$plainBytes = [IO.File]::ReadAllBytes($zipPath)
-$encryptedBytes = Protect-Bytes -PlainBytes $plainBytes -Passphrase $passphrase
-$outputParent = Split-Path -Parent $outputFullPath
-if ($outputParent) {
-    New-Item -ItemType Directory -Force -Path $outputParent | Out-Null
-}
-[IO.File]::WriteAllBytes($outputFullPath, $encryptedBytes)
-Remove-Item -LiteralPath $tempRoot -Recurse -Force
-
-if ($RemovePlaintext) {
-    foreach ($relative in $copiedPaths) {
-        $target = Resolve-InProjectPath -ProjectRoot $projectRoot -RelativePath $relative
-        if (-not $target.StartsWith($projectRoot, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Refusing to remove path outside project: $target"
-        }
-        if ($target -match "\\.git($|\\)" -or $target -match "\\tools($|\\)") {
-            throw "Refusing to remove protected tooling path: $target"
-        }
-        if (Test-Path -LiteralPath $target) {
-            Remove-Item -LiteralPath $target -Recurse -Force
-        }
+finally {
+    if (Test-Path -LiteralPath $tempRoot) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force
     }
 }
 

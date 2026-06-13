@@ -130,6 +130,57 @@ function Resolve-InProjectPath {
     return [IO.Path]::GetFullPath($combined)
 }
 
+function Find-PayloadManifest {
+    param(
+        [string]$ExtractRoot,
+        [string]$ProjectRoot
+    )
+
+    $directPath = Join-Path $ExtractRoot "_private_bundle_manifest.json"
+    if (Test-Path -LiteralPath $directPath) {
+        return $directPath
+    }
+
+    $nested = Get-ChildItem -LiteralPath $ExtractRoot -Recurse -Force -File -Filter "_private_bundle_manifest.json" |
+        Select-Object -First 1
+    if ($nested) {
+        return $nested.FullName
+    }
+
+    $localManifest = Join-Path $ProjectRoot ".private-bundle-manifest.json"
+    if (Test-Path -LiteralPath $localManifest) {
+        Write-Warning "Bundle manifest is missing inside encrypted package. Falling back to local .private-bundle-manifest.json."
+        return $localManifest
+    }
+
+    throw "Bundle manifest is missing inside encrypted package."
+}
+
+function Get-ExtractedProtectedFileCount {
+    param(
+        [string]$ExtractRoot,
+        [object]$ProtectedPaths
+    )
+
+    $count = 0
+    foreach ($relative in $ProtectedPaths) {
+        $source = Join-Path $ExtractRoot $relative
+        if (-not (Test-Path -LiteralPath $source)) {
+            continue
+        }
+        if ((Get-Item -LiteralPath $source).PSIsContainer) {
+            $count += @(
+                Get-ChildItem -LiteralPath $source -Recurse -Force -File |
+                    Where-Object { $_.Extension -notin @(".pyc", ".pyo") }
+            ).Count
+        }
+        else {
+            $count += 1
+        }
+    }
+    return $count
+}
+
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $bundleFullPath = Resolve-InProjectPath -ProjectRoot $projectRoot -RelativePath $BundlePath
 if (-not (Test-Path -LiteralPath $bundleFullPath)) {
@@ -147,35 +198,57 @@ $extractRoot = Join-Path $tempRoot "extract"
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
 
-$encryptedBytes = [IO.File]::ReadAllBytes($bundleFullPath)
-$plainBytes = Unprotect-Bytes -EncryptedBytes $encryptedBytes -Passphrase $passphrase
-[IO.File]::WriteAllBytes($zipPath, $plainBytes)
-Expand-Archive -Path $zipPath -DestinationPath $extractRoot -Force
+try {
+    $encryptedBytes = [IO.File]::ReadAllBytes($bundleFullPath)
+    $plainBytes = Unprotect-Bytes -EncryptedBytes $encryptedBytes -Passphrase $passphrase
+    [IO.File]::WriteAllBytes($zipPath, $plainBytes)
+    Expand-Archive -Path $zipPath -DestinationPath $extractRoot -Force
 
-$payloadManifestPath = Join-Path $extractRoot "_private_bundle_manifest.json"
-if (-not (Test-Path -LiteralPath $payloadManifestPath)) {
-    throw "Bundle manifest is missing inside encrypted package."
-}
-
-$manifest = Get-Content -Raw -LiteralPath $payloadManifestPath | ConvertFrom-Json
-foreach ($relative in $manifest.protected_paths) {
-    $source = Join-Path $extractRoot $relative
-    if (-not (Test-Path -LiteralPath $source)) {
-        continue
+    $payloadManifestPath = Find-PayloadManifest -ExtractRoot $extractRoot -ProjectRoot $projectRoot
+    $manifest = Get-Content -Raw -LiteralPath $payloadManifestPath | ConvertFrom-Json
+    $protectedFileCount = Get-ExtractedProtectedFileCount -ExtractRoot $extractRoot -ProtectedPaths $manifest.protected_paths
+    if ($protectedFileCount -eq 0) {
+        throw "Encrypted package contains no protected files. Refusing to restore an empty bundle."
     }
 
-    $destination = Resolve-InProjectPath -ProjectRoot $projectRoot -RelativePath $relative
-    if (Test-Path -LiteralPath $destination) {
-        if (-not $Overwrite) {
-            throw "Destination already exists. Re-run with -Overwrite: $destination"
+    $restoredFileCount = 0
+    foreach ($relative in $manifest.protected_paths) {
+        $source = Join-Path $extractRoot $relative
+        if (-not (Test-Path -LiteralPath $source)) {
+            continue
         }
-        Remove-Item -LiteralPath $destination -Recurse -Force
+
+        $destination = Resolve-InProjectPath -ProjectRoot $projectRoot -RelativePath $relative
+        if (Test-Path -LiteralPath $destination) {
+            if (-not $Overwrite) {
+                throw "Destination already exists. Re-run with -Overwrite: $destination"
+            }
+            Remove-Item -LiteralPath $destination -Recurse -Force
+        }
+
+        $destinationParent = Split-Path -Parent $destination
+        New-Item -ItemType Directory -Force -Path $destinationParent | Out-Null
+        Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+        if ((Get-Item -LiteralPath $destination).PSIsContainer) {
+            $restoredFileCount += @(
+                Get-ChildItem -LiteralPath $destination -Recurse -Force -File |
+                    Where-Object { $_.Extension -notin @(".pyc", ".pyo") }
+            ).Count
+        }
+        else {
+            $restoredFileCount += 1
+        }
     }
 
-    $destinationParent = Split-Path -Parent $destination
-    New-Item -ItemType Directory -Force -Path $destinationParent | Out-Null
-    Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
-}
+    if ($restoredFileCount -eq 0) {
+        throw "No files were restored from encrypted package."
+    }
 
-Remove-Item -LiteralPath $tempRoot -Recurse -Force
-Write-Host "Decrypted protected files into: $projectRoot"
+    Write-Host "Decrypted protected files into: $projectRoot"
+    Write-Host "Restored file count: $restoredFileCount"
+}
+finally {
+    if (Test-Path -LiteralPath $tempRoot) {
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force
+    }
+}
