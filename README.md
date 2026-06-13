@@ -89,6 +89,41 @@ http://127.0.0.1:5000
 run_web.bat
 ```
 
+### 模型审查 API
+
+网页服务同时提供可复用的模型审查接口，方便后续接入其他已经写好的前端页面。
+
+健康检查：
+
+```bash
+GET http://127.0.0.1:5000/api/v1/health
+```
+
+图片上传审查：
+
+```bash
+POST http://127.0.0.1:5000/api/v1/inspect
+Content-Type: multipart/form-data
+```
+
+表单字段：
+
+- `image_file`：图片文件
+- `parcel_id`：图斑编号
+- `land_type`：地类信息
+- `text_description`：举证说明
+- `rules`：可选，每行一条补充规则
+- `metadata`：可选，JSON 字符串
+
+接口会返回结构化 JSON，其中 `result` 字段与后端统一的 `InspectionResult` 保持一致，包含 `is_abnormal`、`issue_type`、`reason`、`confidence`、`requires_manual_review`、`evidence` 和 `rule_hits`。
+
+如果其他前端不方便传文件，也可以用 JSON 请求传 `image_path` 或 `image_base64`。接口兼容路径：
+
+```text
+/api/v1/inspect
+/api/inspect
+```
+
 ### 单条 Demo
 
 ```bash
