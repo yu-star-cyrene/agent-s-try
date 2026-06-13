@@ -10,6 +10,7 @@
 - 已接通 Prompt 链路：`prompt_builder.py` 会读取结构化规则字段，生成带规则 ID、触发条件、证据要求和输出约束的 Prompt。
 - 已接入代码辅助视觉预检：`vision_precheck` 会先提取图片状态、尺寸和 EXIF 等低成本证据，再注入 `metadata.vision_precheck`。
 - 已建立 Qwen-VL 接入骨架：`QwenVLClient` 支持通过配置文件接入 OpenAI-compatible 图文接口。
+- 已新增本地开源模型入口：`LocalQwenVLClient` 可通过 `Qwen/Qwen2.5-VL-3B-Instruct` 进行低成本本地原型验证。
 - 已支持结果追溯：输出结果包含 `rule_hits`，可以说明命中了哪些规则。
 - 已接通批量评测：`scripts/evaluate_samples.py` 可以批量运行样本并生成评测报告。
 - 已保留 Web 和 CLI 演示入口：支持单条样本演示和页面展示。
@@ -44,7 +45,7 @@
 - `src/modules/rule_engine`：加载规则库，筛选启用规则，并按优先级提供给推理流程。
 - `src/modules/vision_precheck`：在调用多模态模型前提取图片可读性、尺寸、EXIF 等辅助证据。
 - `src/modules/prompt_engine`：根据地块输入和结构化规则生成审查 Prompt。
-- `src/modules/model_gateway`：模型接入层；当前保留 `MockModelClient`，并已新增 `QwenVLClient` 骨架。
+- `src/modules/model_gateway`：模型接入层；当前保留 `MockModelClient`，并已新增 `QwenVLClient` API 骨架和 `LocalQwenVLClient` 本地开源模型入口。
 - `src/modules/postprocess`：解析模型输出，统一转换为结构化结果。
 - `src/modules/evaluation`：提供字段完整率等基础评测函数。
 - `scripts/evaluate_samples.py`：批量读取样本集，运行 pipeline，并输出评测报告。
@@ -104,6 +105,16 @@ python run_demo.py
 ```
 
 不设置 `DACHUANG_MODEL_CONFIG` 时，系统默认继续使用 Mock 模型。
+
+如需先用低成本开源模型跑通本地流程，可使用：
+
+```bat
+pip install torch torchvision transformers accelerate pillow qwen-vl-utils
+set DACHUANG_MODEL_CONFIG=configs\model.local_qwen25vl.example.json
+python run_demo.py
+```
+
+该路线默认使用 `Qwen/Qwen2.5-VL-3B-Instruct`，适合先验证“图片输入 -> 模型理解 -> 规则 JSON -> 前端展示”的完整链路。
 
 ### 批量评测
 
