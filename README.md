@@ -110,19 +110,49 @@ Content-Type: multipart/form-data
 
 - `image_file`：图片文件
 - `parcel_id`：图斑编号
-- `land_type`：地类信息
+- `authoritative_land_type`：地图或业务系统给定的权威地类
+- `map_layer`：地图图层名称
+- `map_feature_id`：图斑要素 ID
+- `land_type_source`：地类来源，例如申报地类、三调属性或用途管制数据
+- `spatial_reference`：空间定位依据，例如图斑边界、中心点坐标或外业定位
+- `parcel_location`：位置说明、坐标说明或行政区说明
+- `land_user`：种植人、使用人或管护人
+- `right_holder`：权属人、责任主体或管护单位
 - `text_description`：举证说明
 - `rules`：可选，每行一条补充规则
 - `metadata`：可选，JSON 字符串
 
 接口会返回结构化 JSON，其中 `result` 字段与后端统一的 `InspectionResult` 保持一致，包含 `is_abnormal`、`issue_type`、`reason`、`confidence`、`requires_manual_review`、`evidence` 和 `rule_hits`。
 
-如果其他前端不方便传文件，也可以用 JSON 请求传 `image_path` 或 `image_base64`。接口兼容路径：
+如果其他前端来自 GIS 或业务系统，推荐用 JSON 直接传完整 `parcel_context`：
+
+```json
+{
+  "parcel_id": "FJ-2026-001",
+  "image_base64": "...",
+  "image_filename": "parcel.jpg",
+  "parcel_context": {
+    "authoritative_land_type": "耕地",
+    "land_type_source": "三调属性",
+    "map_layer": "三调地类图层",
+    "map_feature_id": "feature-001",
+    "spatial_reference": "图斑边界",
+    "parcel_location": "福建省某县某村",
+    "land_user": "某种植人或合作社",
+    "right_holder": "某责任主体"
+  },
+  "text_description": "现场举证照片用于核查当前土地利用近况。"
+}
+```
+
+接口也支持 JSON 请求传 `image_path` 或 `image_base64`。接口兼容路径：
 
 ```text
 /api/v1/inspect
 /api/inspect
 ```
+
+注意：模型不能仅凭单张照片确认法定地类、权属人、种植人或真实空间位置。正式系统中这些信息应由地图图层、图斑属性、坐标边界、权属/种植人台账或国土调查数据传入；模型只负责核查上传图片中的土地近况是否与 `parcel_context` 冲突。
 
 ### 单条 Demo
 

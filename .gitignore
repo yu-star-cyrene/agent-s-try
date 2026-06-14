@@ -14,6 +14,7 @@ outputs/reports/
 
 tmp_test_dir/
 tmp_crypto_handbook/
+tmp_decrypt_*/
 
 # Encrypted public bundle
 !private_bundle.zip.dcb
